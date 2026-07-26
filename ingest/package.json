@@ -1,0 +1,17 @@
+{
+    "name": "pitboss-ingest",
+    "version": "1.0.0",
+    "description": "Node.js ingestion edge for the PitBoss casino data pipeline: validates casino events at the boundary and routes them to the landing zone or quarantine.",
+    "main": "server.js",
+    "scripts": {
+      "start": "node server.js",
+      "batch": "node server.js --batch ../data/raw_firehose.jsonl"
+    },
+    "dependencies": {
+      "fastify": "^4.28.1"
+    },
+    "engines": {
+      "node": ">=18"
+    },
+    "license": "MIT"
+  }
