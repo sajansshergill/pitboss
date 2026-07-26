@@ -1,0 +1,29 @@
+# Local infrastructure for PitBoss.
+#
+# The lightweight pipeline path needs nothing here — generator, Node ingestion,
+# DuckDB, and the quality gate all run on the filesystem. Bring this up when you
+# want the Neo4j graph layer and the browser to explore collusion rings.
+#
+#   docker compose up -d
+#   # Neo4j browser: http://localhost:7474  (neo4j / pitboss123)
+#
+services:
+  neo4j:
+    image: neo4j:5.22-community
+    container_name: pitboss-neo4j
+    ports:
+      - "7474:7474"   # HTTP browser
+      - "7687:7687"   # Bolt (driver)
+    environment:
+      NEO4J_AUTH: neo4j/pitboss123
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "pitboss123", "RETURN 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  neo4j_data:

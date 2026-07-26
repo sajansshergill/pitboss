@@ -1,0 +1,21 @@
+# Core pipeline
+duckdb>=1.1.0
+faker>=25.0.0
+pyarrow>=16.0.0
+
+# Graph
+neo4j>=5.20.0
+
+# Dashboard
+streamlit>=1.36.0
+pandas>=2.2.0
+
+# Quality / testing
+pytest>=8.0.0
+
+# Optional: production transform path
+# dbt-duckdb>=1.8.0
+
+# Optional: production orchestration
+# dagster>=1.7.0
+# dagster-webserver>=1.7.0

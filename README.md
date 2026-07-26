@@ -120,11 +120,12 @@ cd ingest && npm install && cd ..
 # 4. Start infra (Neo4j, Kafka) via Docker
 docker compose up -d
 
-# 5. Generate synthetic events (controlled rate, clean run)
-python generator/emit.py --rate 500 --duration 300
+# 5. Generate synthetic events (clean file sink)
+python generator/emit.py --players 200 --sink file
 
 # 6. Run the pipeline end to end
-airflow dags trigger pitboss_pipeline    # or: dagster job execute -j pitboss
+./run_pipeline.sh
+# or: python orchestration/pipeline.py --players 200
 
 # 7. Launch the dashboard
 streamlit run app/dashboard.py
@@ -133,7 +134,8 @@ streamlit run app/dashboard.py
 To reproduce the bad-data-day scenario:
 
 ```bash
-python generator/emit.py --inject duplicates,schema-drift,late-batch
+./run_pipeline.sh --bad-day
+# or: python orchestration/pipeline.py --inject duplicates,schema-drift,late-batch
 ```
 
 ## Project structure
@@ -154,9 +156,9 @@ pitboss/
 ## Testing
 
 ```bash
-pytest                      # unit + integration tests on transforms and graph loaders
-dbt test                    # model-level data contracts
-great_expectations checkpoint run pitboss   # pipeline quality gates
+pytest                      # unit + integration tests for generator, ingest, transforms, quality, graph
+python quality/contracts.py # pipeline quality gate against the local DuckDB warehouse
+dbt test                    # optional production model-level contracts, with dbt-duckdb installed
 ```
 
 ## Scope & honest gaps

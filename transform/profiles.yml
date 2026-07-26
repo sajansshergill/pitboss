@@ -1,0 +1,8 @@
+# Copy to ~/.dbt/profiles.yml (or set DBT_PROFILES_DIR to this folder).
+pitboss:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/pitboss.duckdb
+      threads: 4

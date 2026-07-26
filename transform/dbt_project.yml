@@ -1,0 +1,19 @@
+# dbt-duckdb project — the production path for the transform layer.
+#
+# The SQL in transform/models/ runs two ways:
+#   1. Zero-dependency: python transform/build_star.py (used in CI + local)
+#   2. dbt: `dbt run` against this project (the production target)
+#
+# The model files query raw_events and each other by name, so they compile and
+# run under dbt as-is. To add lineage, wrap source refs in {{ source() }} and
+# model refs in {{ ref() }} — logic is unchanged.
+name: pitboss
+version: "1.0.0"
+config-version: 2
+profile: pitboss
+
+model-paths: ["models"]
+
+models:
+  pitboss:
+    +materialized: table

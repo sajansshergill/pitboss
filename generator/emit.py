@@ -189,10 +189,26 @@ def generate_with_world(n_players: int = 200, seed: int = 42):
         for _ in range(n_sessions):
             start = base + timedelta(minutes=rng.uniform(0, 300))
             events.extend(_player_session(world, player, start))
-            # Emit the self-exclusion event at its timestamp for excluders.
-            if player in world.excluded_at and rng.random() < 0.3:
-                events.append(_envelope(world, "self_exclusion", player,
-                                        world.excluded_at[player]))
+
+    # Responsible-gaming demo signal: each excluder has an explicit exclusion
+    # event plus a later wager. This is WARN-only in quality, not a publish gate.
+    for player, excluded_at in world.excluded_at.items():
+        events.append(_envelope(world, "self_exclusion", player, excluded_at))
+
+        session_id = f"S-RG-{world.uid()[:12]}"
+        start = excluded_at + timedelta(minutes=5)
+        e = _envelope(world, "session_start", player, start)
+        e.update(session_id=session_id, device_id=world.device[player],
+                 ip_fingerprint=world.fingerprint[player])
+        events.append(e)
+
+        e = _envelope(world, "wager", player, start + timedelta(seconds=20))
+        e.update(session_id=session_id, game_id="slots_aztec", amount=25.0)
+        events.append(e)
+
+        e = _envelope(world, "session_end", player, start + timedelta(minutes=2))
+        e.update(session_id=session_id)
+        events.append(e)
 
     # Bonus-abuse ring: every member claims the SAME promotion on the shared card.
     for ring in world.rings[:1]:
@@ -218,6 +234,7 @@ def generate(n_players: int = 200, seed: int = 42) -> list[dict]:
 
 def write_referrals(world: "World", path: Path) -> None:
     """Dump referrer,referee pairs so the graph layer can build REFERRED_BY."""
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as fh:
         fh.write("referrer,referee\n")
         for referrer, referee in world.referrals:
