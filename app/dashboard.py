@@ -6,6 +6,7 @@ Reads the DuckDB warehouse the pipeline produces. Run after a pipeline pass:
 """
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -14,15 +15,40 @@ import pandas as pd
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from config import DUCKDB_PATH  # noqa: E402
+from config import DATA_DIR, DUCKDB_PATH, LANDING_DIR, QUARANTINE_DIR, ensure_dirs  # noqa: E402
+from generator import emit  # noqa: E402
+from quality import contracts  # noqa: E402
+from transform import build_star, load_raw  # noqa: E402
+
+
+def build_demo_warehouse(players: int = 100) -> None:
+    """Create a small hosted-demo warehouse when no local pipeline output exists."""
+    ensure_dirs()
+    for zone in (LANDING_DIR, QUARANTINE_DIR):
+        for file in zone.glob("*.jsonl"):
+            file.unlink()
+
+    events, world = emit.generate_with_world(players, seed=42)
+    emit.write_referrals(world, DATA_DIR / "referrals.csv")
+    (LANDING_DIR / "demo-events.jsonl").write_text(
+        "\n".join(json.dumps(event) for event in events) + "\n"
+    )
+    load_raw.load()
+    build_star.build()
+    contracts.run()
 
 st.set_page_config(page_title="PitBoss", layout="wide")
 st.title("PitBoss — Casino Pipeline Health & Responsible-Gaming Signals")
 
 if not DUCKDB_PATH.exists():
-    st.warning("No warehouse found. Run the pipeline first: "
-               "`python orchestration/pipeline.py`")
-    st.stop()
+    with st.spinner("Building a demo warehouse for this hosted app..."):
+        try:
+            build_demo_warehouse()
+        except Exception as exc:  # noqa: BLE001
+            st.error("Could not build the demo warehouse.")
+            st.exception(exc)
+            st.stop()
+    st.success("Built a demo warehouse. Run `./run_pipeline.sh` locally to exercise Node ingestion.")
 
 con = duckdb.connect(str(DUCKDB_PATH), read_only=True)
 
