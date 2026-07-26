@@ -15,10 +15,24 @@ import pandas as pd
 import streamlit as st
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from config import DATA_DIR, DUCKDB_PATH, LANDING_DIR, QUARANTINE_DIR, ensure_dirs  # noqa: E402
+from config import (  # noqa: E402
+    DATA_DIR,
+    DUCKDB_PATH,
+    LANDING_DIR,
+    QUARANTINE_DIR,
+    ensure_dirs,
+)
 from generator import emit  # noqa: E402
 from quality import contracts  # noqa: E402
 from transform import build_star, load_raw  # noqa: E402
+
+REQUIRED_TABLES = {
+    "dim_player",
+    "fact_wager",
+    "fact_bonus_claim",
+    "fact_session",
+    "quality_results",
+}
 
 
 def build_demo_warehouse(players: int = 100) -> None:
@@ -37,10 +51,28 @@ def build_demo_warehouse(players: int = 100) -> None:
     build_star.build()
     contracts.run()
 
+
+def warehouse_ready() -> bool:
+    """Return true only when the DuckDB file has the dashboard's required tables."""
+    if not DUCKDB_PATH.exists():
+        return False
+
+    con = None
+    try:
+        con = duckdb.connect(str(DUCKDB_PATH), read_only=True)
+        existing = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+        return REQUIRED_TABLES.issubset(existing)
+    except duckdb.Error:
+        return False
+    finally:
+        if con is not None:
+            con.close()
+
+
 st.set_page_config(page_title="PitBoss", layout="wide")
 st.title("PitBoss — Casino Pipeline Health & Responsible-Gaming Signals")
 
-if not DUCKDB_PATH.exists():
+if not warehouse_ready():
     with st.spinner("Building a demo warehouse for this hosted app..."):
         try:
             build_demo_warehouse()
@@ -48,6 +80,9 @@ if not DUCKDB_PATH.exists():
             st.error("Could not build the demo warehouse.")
             st.exception(exc)
             st.stop()
+    if not warehouse_ready():
+        st.error("Demo warehouse was created, but required dashboard tables are missing.")
+        st.stop()
     st.success("Built a demo warehouse. Run `./run_pipeline.sh` locally to exercise Node ingestion.")
 
 con = duckdb.connect(str(DUCKDB_PATH), read_only=True)
